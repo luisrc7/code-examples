@@ -1,0 +1,4 @@
+name = Code Examples - Pack and Compress files.
+description = Packing and compression of files example.
+package = Custom
+core = 7.x

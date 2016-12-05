@@ -1,0 +1,12 @@
+name = Code Examples - Migrate
+description = Migrate class example for Articles, with Tags taxonomy, entityreference fields and images.
+package = Custom
+core = 7.x
+
+dependencies[] = migrate
+dependencies[] = entityreference
+
+files[] = code_examples_migration.module
+files[] = code_examples_migration.install
+files[] = article.inc
+files[] = bio.inc

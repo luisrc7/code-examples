@@ -1,0 +1,473 @@
+<?php
+
+/**
+ * @file
+ *
+ * .module file for Reads module.
+ *
+ * Usually the functions in this file should go in different includes files and
+ * folders, but I've condensed all the code in this file for the examples.
+ */
+
+// Default database table name.
+define('CE_READS_DB_TABLE_NAME', 'ce_reads_node');
+
+/**
+ * Implements hook_schema().
+ */
+function code_examples_reads_schema() {
+
+  $schema[CE_READS_DB_TABLE_NAME] = array(
+    'description' => 'Base table for the Node Reads',
+    'fields' => array(
+      'rid' => array(
+        'description' => 'Primary key of the read ID.',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'uid' => array(
+        'description' => 'User ID.',
+        'type' => 'int',
+        'not null' => TRUE,
+      ),
+      'nid' => array(
+        'description' => 'Node ID.',
+        'type' => 'int',
+        'not null' => TRUE,
+      ),
+      'created'   => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0
+      ),
+    ),
+    'primary key' => array('rid'),
+  );
+
+  return $schema;
+}
+
+/**
+ * Implements hook_menu().
+ */
+function code_examples_reads_menu() {
+
+  $items = array();
+
+  $items['reads/test'] = array(
+    'title' => 'Contact Us',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('code_examples_reads_form_test'),
+    'access callback' => 'user_access',
+    'access arguments' => array('access content'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  $items['reads/ajax'] = array(
+    'page callback' => 'reads_ajax_callback',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['reads/%/%/%'] = array(
+    'page callback' => 'reads_ajax_callback',
+    'page arguments' => array(1, 2, 3),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['user/%/reads'] = array(
+    'title' => 'My Reads',
+    'page callback' => 'user_reads_page',
+    'page arguments' => array(1),
+    'access callback' => TRUE,
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 99,
+  );
+
+  $items['user/%/reads/export'] = array(
+    'title' => 'Download Reads',
+    'page callback' => 'user_reads_download',
+    'page arguments' => array(1),
+    'access callback' => TRUE,
+    'type' => MENU_LOCAL_TASK,
+  );
+
+  $items['node/%/reads'] = array(
+    'title' => 'Node Reads',
+    'page callback' => 'node_reads_page',
+    'page arguments' => array(1),
+    'access callback' => TRUE,
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 99,
+  );
+
+  $items['node/%/reads/export'] = array(
+    'title' => 'Download Reads',
+    'page callback' => 'node_reads_download',
+    'page arguments' => array(1),
+    'access callback' => TRUE,
+    'type' => MENU_LOCAL_TASK,
+  );
+
+  return $items;
+}
+
+/**
+ * Reads interface for Nodes. Table with User name, Roles and Time as Columns
+ * and Users as rows.
+ *
+ * @param Integer $nid
+ *  Node ID of the actual node.
+ * @return string
+ *  HTML table with Username, Roles and Time information for each User.
+ */
+function node_reads_page($nid) {
+  $reads = code_examples_reads_from_node($nid);
+  if ($reads) {
+    $table_rows = array();
+    foreach ($reads as $key => $options) {
+      $user = user_load($options['uid']);
+      $roles = implode(', ', $user->roles);;
+      $table_rows[] = array(
+        $user->name,
+        $roles,
+        date("F j, Y, g:i a", $options['created']),
+      );
+    }
+    $table_headers = array(
+      t('User Name'),
+      t('User Role'),
+      t('Date'),
+    );
+    $return = theme('table', array('header' => $table_headers, 'rows' => $table_rows, 'attributes' => array('class' => array('node-reads'))));
+    $return .= "<br/><br/>";
+    $return .= l(t('Download Reads'), 'node/' . $nid . '/reads/export', array('attributes' => array('class' => array('reads-download', 'le-button'))));
+  }
+  else {
+    $return = "No Reads for this Node.";
+  }
+  return $return;
+}
+
+/**
+ * Reads interface for Users. Table with Node Title and Time as Columns and
+ * Nodes as rows.
+ *
+ * @param Integer $uid
+ *  User ID of the actual user.
+ * @return string
+ *  HTML table with Title and Time for each Node.
+ */
+function user_reads_page($uid) {
+  $reads = code_examples_reads_from_user($uid);
+  if ($reads) {
+    $return = "<div class='user-reads'>";
+    foreach ($reads as $key => $options) {
+      $node = node_load($options['nid']);
+      $date = date("F j, Y, g:i a", $options['created']);
+      $return .= "<div class='read-item'>";
+      $return .= "<label class='read-label'>";
+      $return .= $node->title;
+      $return .= "</label>";
+      $return .= "<span class='read-date'>";
+      $return .= $date;
+      $return .= "</span>";
+      $return .= "</div>";
+    }
+    $return .= "</div>";
+    $return .= "<br/><br/>";
+    $return .= l(t('Download Reads'), 'user/' . $uid . '/reads/export', array('attributes' => array('class' => array('reads-download', 'le-button'))));
+  }
+  else {
+    $return = "No Node reads.";
+  }
+  return $return;
+
+}
+
+/**
+ * Main callback function for Read link.
+ * @param string $action
+ * @param string $type
+ * @param $nid
+ * @return null|string
+ */
+function reads_ajax_callback($action = 'add', $type = 'ajax', $nid) {
+  if ($type == 'ajax') {
+    global $user;
+    $commands = array();
+    if ($action == 'add') {
+      code_examples_reads_add_read($user->uid, $nid);
+      $commands[] = ajax_command_replace('#reads-' . $nid, code_examples_reads_generate_link($nid, 'Mark as unread', 'remove'));
+    }
+    if ($action == 'remove') {
+      code_examples_reads_remove_read($user->uid, $nid);
+      $commands[] = ajax_command_replace('#reads-' . $nid, code_examples_reads_generate_link($nid));
+    }
+    $page = array('#type' => 'ajax', '#commands' => $commands);
+    ajax_deliver($page);
+  }
+  else {
+    $output = t("There was an error with Ajax and this action could not be completed, please reload the page.");
+    return $output;
+  }
+}
+
+/**
+ * Test form.
+ * @param $form
+ * @param $form_state
+ * @return array
+ */
+function luis_examples_reads_form_test($form, &$form_state) {
+  $form = array();
+  // Add libraries
+  drupal_add_library('system', 'drupal.ajax');
+  drupal_add_library('system', 'jquery.form');
+
+  $nid_argument = '2';
+  $form['markup'] = array(
+    '#markup' => code_examples_reads_generate_link($nid_argument),
+  );
+
+  return $form;
+}
+
+/**
+ * Test form Validate.
+ * @param $form
+ * @param $form_state
+ */
+function code_examples_reads_form_test_validate($form, &$form_state) {
+  if (empty($form_state['values']['uid'])) {
+    form_set_error('uid', t('UID cant be empty.'));
+  }
+  if (empty($form_state['values']['nid'])) {
+    form_set_error('nid', t('NID cant be empty.'));
+  }
+}
+
+/**
+ * Generate a link for Reads based on parameters.
+ * @param $nid
+ * @param string $name
+ * @param string $action
+ * @return string
+ */
+function code_examples_reads_generate_link($nid, $name = 'Mark as read', $action = 'add') {
+  global $user;
+  if (code_examples_reads_read_exist($user->uid, $nid)) {
+    $action = 'remove';
+    $name = 'Mark as unread';
+  }
+  if ($action == 'add') $classes = array('use-ajax', 'flag-action', 'le-button');
+  if ($action == 'remove') $classes = array('use-ajax', 'unflag-action', 'le-button');
+  return l($name, 'reads/' . $action . '/nojs/' . $nid, array(
+    'attributes' => array(
+      'class' => $classes,
+      'id' => array('reads-' . $nid),
+    )
+  ));
+}
+
+/**
+ * Add a record to the Reads table.
+ * @param $uid
+ * @param $nid
+ * @return \DatabaseStatementInterface|int
+ * @throws \Exception
+ */
+function code_examples_reads_add_read($uid, $nid) {
+  $rid = db_insert(CE_READS_DB_TABLE_NAME)
+  ->fields(array(
+    'uid' => $uid,
+    'nid' => $nid,
+    'created' => REQUEST_TIME,
+  ))
+    ->execute();
+  return $rid;
+}
+
+/**
+ * Removes a record if exist from the Reads table.
+ * @param $uid
+ * @param $nid
+ * @return \DatabaseStatementInterface
+ */
+function code_examples_reads_remove_read($uid, $nid) {
+  $rid = db_delete(CE_READS_DB_TABLE_NAME)
+    ->condition('uid', $uid)
+    ->condition('nid', $nid)
+    ->execute();
+  return $rid;
+}
+
+/**
+ * Checks if user - node pair is in the database table Reads.
+ * @param $uid
+ * @param $nid
+ * @return bool
+ */
+function code_examples_reads_read_exist($uid, $nid) {
+  // Check if exist return true
+  $sql = "SELECT rid FROM {" . CE_READS_DB_TABLE_NAME . "} WHERE uid = :uid and nid = :nid";
+  $exist = db_query($sql, array(':uid' => $uid, ':nid' => $nid))->rowCount();
+  return $exist;
+}
+
+/**
+ * Return the data from a given User ID.
+ * @param $uid
+ * @return array|null
+ */
+function code_examples_reads_from_user($uid) {
+  $return = NULL;
+  $query = db_select(CE_READS_DB_TABLE_NAME, 'r');
+  $query->fields('r', array('rid', 'uid', 'nid', 'created'));
+  $query->condition('uid', $uid, '=');
+  $result = $query->execute();
+  while ($record = $result->fetchAssoc()) {
+    $return[] = $record;
+  }
+
+  return $return;
+}
+
+/**
+ * Return the data from a given Node ID.
+ * @param $nid
+ * @return array|null
+ */
+function code_examples_reads_from_node($nid) {
+  $return = NULL;
+  $query = db_select(CE_READS_DB_TABLE_NAME, 'r');
+  $query->fields('r', array('rid', 'uid', 'nid', 'created'));
+  $query->condition('nid', $nid, '=');
+  $result = $query->execute();
+  while ($record = $result->fetchAssoc()) {
+    $return[] = $record;
+  }
+
+  return $return;
+}
+
+/**
+ * Deletes the Reads record in the database.
+ * @param Integer $rid
+ *  Read ID to delete.
+ * @return \DatabaseStatementInterface
+ *  Database handler response.
+ */
+function code_examples_reads_delete_read($rid) {
+  $result = db_delete(CE_READS_DB_TABLE_NAME)
+    ->condition('rid', $rid)
+    ->execute();
+  return $result;
+}
+
+/**
+ * Download function for the Node Reads.
+ * @param Integer $nid
+ *  Node ID to download the Reads.
+ * @return bool
+ *  Return False if there was any issue.
+ */
+function node_reads_download($nid) {
+  $date = date_create();
+  $timestamp = date_timestamp_get($date);
+  // Set filename and path to csv file.
+  $file = "reads-" . $nid . "-" . $timestamp . ".csv";
+
+//  $file = $location_value.'_intake_export.csv';
+  header("Pragma: public");
+  header("Expires: 0");
+  header("Cache-Control: private");
+  header("Content-type: application/octet-stream");
+  header("Content-Disposition: attachment; filename=$file");
+  header("Accept-Ranges: bytes");
+
+  $reads = code_examples_reads_from_node($nid);
+  // Check if Node has reads.
+  if (empty($reads)) return FALSE;
+
+  $f = fopen('php://output', 'w');
+  // Write csv heading
+  $itemheading = array(
+    'User Name',
+    'User Role',
+    'Date',
+  );
+  fputcsv($f, $itemheading, ',', '"');
+  // Loop each reader and save the info in a new row.
+  foreach ($reads as $key => $options) {
+    $user = user_load($options['uid']);
+    $roles = implode(', ', $user->roles);;
+    // Save to csv file.
+    fputcsv($f, array($user->name, $roles, date("F j, Y, g:i a", $options['created'])), ',', '"');
+  }
+  // Close the file.
+  fclose($f);
+  exit;
+}
+
+/**
+ * Download function for the User Reads.
+ * @param Integer $uid
+ *  User ID to download the Reads.
+ * @return bool
+ *  Return False if there was any issue.
+ */
+function user_reads_download($uid) {
+  $date = date_create();
+  $timestamp = date_timestamp_get($date);
+  // Set filename and path to csv file.
+  $file = "reads-" . $uid . "-" . $timestamp . ".csv";
+
+//  $file = $location_value.'_intake_export.csv';
+  header("Pragma: public");
+  header("Expires: 0");
+  header("Cache-Control: private");
+  header("Content-type: application/octet-stream");
+  header("Content-Disposition: attachment; filename=$file");
+  header("Accept-Ranges: bytes");
+
+  $reads = code_examples_reads_from_user($uid);
+  // Check if Node has reads.
+  if (empty($reads)) return FALSE;
+
+  $f = fopen('php://output', 'w');
+  // Write csv heading
+  $itemheading = array(
+    'Node',
+    'Date',
+  );
+  fputcsv($f, $itemheading, ',', '"');
+  // Loop each reader and save the info in a new row.
+  foreach ($reads as $key => $options) {
+    $node = node_load($options['nid']);
+    // Save to csv file.
+    fputcsv($f, array($node->title, date("F j, Y, g:i a", $options['created'])), ',', '"');
+  }
+  // Close the file.
+  fclose($f);
+  exit;
+}
+
+/**
+ * This code should be done in a field like, but I have used this hook to display
+ * the link.
+ * Implements hook_node_view().
+ */
+function code_examples_reads_node_view($node, $view_mode, $langcode) {
+  // Add libraries
+  drupal_add_library('system', 'drupal.ajax');
+  drupal_add_library('system', 'jquery.form');
+
+  // Add the Reads button info to node object.
+  $node->content['reads_button'] = array(
+    '#markup' => code_examples_reads_generate_link($node->nid),
+    '#weight' => 99,
+  );
+}

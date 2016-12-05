@@ -1,0 +1,76 @@
+<?php
+
+/**
+ * @file
+ *
+ * .module file for migrations example.
+ *
+ * Usually the functions in this file should go in different includes files and
+ * folders, but I've condensed all the code in this file for the examples.
+ */
+
+/**
+ * Implements hook_enable().
+ */
+function code_examples_migration_enable() {
+  MigrationBase::registerMigration('MigrateArticle', 'MigrateBio');
+  drupal_set_message(t('Migration Example module enabled, please go to the
+    Migration Interface to run the migrations.'));
+}
+
+/**
+ * Implements hook_node_info().
+ */
+function code_examples_migration_node_info() {
+  return array(
+    'biography' => array(
+      'name' => t('Biography'),
+      'description' => t('Biography Content Type auto created from Migrate Example Module.'),
+      'base' => 'biography',
+      'has_title' => TRUE,
+      'title_label' => t('Bio Title')
+    )
+  );
+}
+
+/**
+ * Implement hook_form().
+ */
+function biography_form($node, $form_state) {
+  return node_content_form($node, $form_state);
+}
+
+/**
+ * Implements hook_action_info().
+ */
+function code_examples_migration_migrate_api() {
+  $format = 'filtered_html';
+  $options = array('track_changes' => 1);
+
+  $api = array(
+    'api' => 2,
+    'groups' => array(
+      'code_examples' => array(
+        'title' => t('Code Examples Imports'),
+      ),
+    ),
+    'migrations' => array(
+      'MigrateArticle' => array(
+        'class_name' => 'MigrateArticleMigration',
+        'group_name' => 'code_examples',
+        'format' => $format,
+        'options' => $options,
+      ),
+      'MigrateBio' => array(
+        'class_name' => 'MigrateBioMigration',
+        'group_name' => 'code_examples',
+        'format' => $format,
+        'options' => $options,
+        'dependencies' => array(
+          'MigrateArticle',
+        ),
+      ),
+    ),
+  );
+  return $api;
+}

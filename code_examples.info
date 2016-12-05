@@ -1,0 +1,14 @@
+name = Code Examples
+description = Controller module for Code examples.
+package = Custom
+core = 7.x
+
+configure = admin/code-examples
+
+stylesheets[all][] = src/css/styles.css
+
+;scripts[] = src/js/luis_examples.js
+
+files[] = admin/code_examples.admin.inc
+files[] = includes/code_examples.common.inc
+

@@ -1,0 +1,47 @@
+<?php
+
+/**
+ * @file
+ *
+ * default .module file.
+ */
+
+/**
+ * General Module Includes.
+ */
+module_load_include('inc', 'code_examples', '/includes/code_examples.common');
+
+/**
+ * Implements hook_menu().
+ */
+function code_examples_menu() {
+  $items['admin/code-examples'] = array(
+    'title' => 'Code Examples',
+    'page callback' => 'code_examples_page',
+    'file' => 'admin/code_examples.admin.inc',
+    'access arguments' => array('access content'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_help().
+ */
+function code_examples_help($path, $arg) {
+  switch ($path) {
+    case "admin/help#code_examples":
+      return '' . t("Contain sub modules with development code examples.") . '';
+      break;
+  }
+}
+
+/**
+ * Implements hook_enable().
+ */
+function code_examples_enable() {
+  drupal_set_message(t('Code Examples module enabled, please go to the main module interface (@link) for descriptions. Or you could enable the different subodules.',
+      array('@link' => url('admin/code-examples', array('absolute' => TRUE))))
+  );
+}

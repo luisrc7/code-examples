@@ -1,0 +1,190 @@
+<?php
+
+/**
+ * @file
+ *
+ * .module file for Overlay_Load module.
+ *
+ * Usually the functions in this file should go in different includes files and
+ * folders, but I've condensed all the code in this file for the examples.
+ */
+
+/**
+ * Implements hook_enable().
+ */
+function code_examples_overlay_load_enable() {
+  // Give this module a higher weight so could alter other module's code.
+  db_update('system')
+    ->fields(array('weight' => 1))
+    ->condition('type', 'module')
+    ->condition('name', 'code_examples_overlay_load')
+    ->execute();
+}
+
+/**
+ * Implements hook_menu().
+ */
+function code_examples_overlay_load_menu() {
+
+  $items = array();
+
+  $items['site-content/selected/%'] = array(
+    'title' => 'Selected Content With Files',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('ce_selected_content_form_overlay', 2),
+    'access arguments' => array('access content'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  return $items;
+}
+
+/**
+ * Alter the "ce_site_content_form" form from packed_files module.
+ *
+ * Implements hook_form_BASE_FORM_ID_alter().
+ */
+function code_examples_overlay_load_form_ce_site_content_form_alter(&$form, &$form_state, $form_id) {
+
+  // Alter the Submit to a custom function with Ajax.
+  $form['options']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Select'),
+    '#prefix' => '<div class="ce-select-overlay">',
+    '#suffix' => '</div>',
+    '#ajax' => array(
+      'callback' => 'ce_overlay_submit',
+      'wrapper' => 'ce-select-overlay',
+      'method' => 'replace',
+      'effect' => 'fade',
+    ),
+  );
+
+  // Attach JS file.
+  $form['#attached']['js'] = array(
+    array(
+      'type'  => 'file',
+      'data' => drupal_get_path('module', 'code_examples') . '/src/js/overlay.js',
+    ),
+  );
+
+}
+
+/**
+ * Submit handler with Ajax for ce_site_content_form().
+ */
+function ce_overlay_submit(&$form, &$form_state) {
+
+  $commands = array();
+
+  $node_selected = array();
+  foreach ($form_state['input'] as $field => $value) {
+    $split = explode('-', $field);
+    if (isset($split['0']) && $split['0'] == 'select') {
+      $node_selected[] = $value;
+    }
+  }
+
+  // Go to Selected content.
+  $commands[] = array(
+    'command' => 'selectedContent',
+    'selectedLink' => '/site-content/selected/' . implode(' ', $node_selected),
+  );
+
+  return array('#type' => 'ajax', '#commands' => $commands);
+}
+
+/**
+ * Selected content table with checkboxes Form, to display in Overlay.
+ */
+function ce_selected_content_form_overlay($form, $form_state, $arguments) {
+  // get arguments from previous form.
+  $arguments = explode(' ', $arguments);
+
+  // Load the selected nodes. (Only if they have active files.)
+  $content = _get_selected_content($arguments);
+
+  // Generate Table content
+  $table_rows = array();
+  foreach ($content as $nid => $node) {
+    $table_rows[] = array(
+      $node->title,
+      $node->type,
+      date("F j, Y, g:i a", $node->created),
+      '<input type="checkbox" id="select-' . $node->nid . '" name="select-' . $node->nid . '" value="' . $node->nid . '"/>',
+    );
+    $selected[] = $nid;
+  }
+  $table_headers = array(
+    t('Content Title'),
+    t('Content Type'),
+    t('Created Date'),
+    t('Select'),
+  );
+
+  $table = theme('table', array('header' => $table_headers, 'rows' => $table_rows, 'attributes' => array('class' => array('selected-content'))));
+
+  $form['intro'] = array(
+    '#type' => 'item',
+    '#markup' => t('Please note all content in this table has associated files. <br />
+        I have removed any content with no file entities.'),
+  );
+
+  $form['content_table'] = array(
+    '#type' => 'item',
+    '#markup' => $table,
+  );
+
+  $form['ids'] = array(
+    '#type' => 'hidden',
+    '#value' => implode(' ', $selected),
+  );
+
+  $form['options'] = array(
+    '#type' => 'container',
+  );
+
+  $form['options']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Download'),
+    '#prefix' => '<div class="ce-download-overlay">',
+    '#suffix' => '</div>',
+    '#ajax' => array(
+      'callback' => 'ce_overlay_download',
+      'wrapper' => 'ce-download-overlay',
+      'method' => 'replace',
+      'effect' => 'fade',
+    ),
+  );
+  return $form;
+}
+
+/**
+ * Submit handler with Ajax for ce_selected_content_form_overlay().
+ */
+function ce_overlay_download($form, &$form_state) {
+
+  $commands = array();
+
+  $node_selected = array();
+  foreach ($form_state['input'] as $field => $value) {
+    $split = explode('-', $field);
+    if (isset($split['0']) && $split['0'] == 'select') {
+      $node_selected[] = $value;
+    }
+  }
+  // Calling the URL to create the packed file.
+  $redirect = '/site-content/download/' . urlencode(implode('+', $node_selected));
+
+  // Download files.
+  $commands[] = array(
+    'command' => 'downloadFiles',
+    'downloadLink' => $redirect,
+  );
+  // Close Colorbox.
+  $commands[] = array(
+    'command' => 'closeColorbox',
+  );
+
+  return array('#type' => 'ajax', '#commands' => $commands);
+}

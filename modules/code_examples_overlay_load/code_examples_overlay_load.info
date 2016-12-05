@@ -1,0 +1,9 @@
+name = Code Examples - Overlay content load.
+description = Overlay loaded content example.
+package = Custom
+core = 7.x
+
+dependencies[] = code_examples_packzip_files
+dependencies[] = colorbox
+dependencies[] = colorbox_node
+

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<database>
+  <select>
+    <row>
+      <INDEX>1</INDEX>
+      <TITLE>Article No. 1</TITLE>
+      <CATEGORY>Tag 1;Tag 2</CATEGORY>
+      <IMAGE>example1.png</IMAGE>
+      <DESCRIPTION>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</DESCRIPTION>
+    </row>
+    <row>
+      <INDEX>2</INDEX>
+      <TITLE>Article No. 2</TITLE>
+      <CATEGORY>Tag 2;Tag 3;Tag 4</CATEGORY>
+      <IMAGE>example2.png</IMAGE>
+      <DESCRIPTION>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</DESCRIPTION>
+    </row>
+    <row>
+      <INDEX>3</INDEX>
+      <TITLE>Article No. 3</TITLE>
+      <CATEGORY>Tag 3;Tag 4</CATEGORY>
+      <DESCRIPTION>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</DESCRIPTION>
+    </row>
+    <row>
+      <INDEX>4</INDEX>
+      <TITLE>Article No. 4</TITLE>
+      <CATEGORY>Tag 4</CATEGORY>
+      <DESCRIPTION>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</DESCRIPTION>
+    </row>
+    <row>
+      <INDEX>5</INDEX>
+      <TITLE>Article No. 5</TITLE>
+      <CATEGORY>Tag 1</CATEGORY>
+      <IMAGE>example5.png</IMAGE>
+      <DESCRIPTION>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</DESCRIPTION>
+    </row>
+  </select>
+</database>

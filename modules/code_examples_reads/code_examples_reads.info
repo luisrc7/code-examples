@@ -1,0 +1,4 @@
+name = Code Examples - Reads
+description = Allow users to flag a node as read.
+package = Custom
+core = 7.x

@@ -1,0 +1,179 @@
+<?php
+
+/**
+ * @file
+ *
+ * .module file for Last_Viewed module.
+ *
+ * Usually the functions in this file should go in different includes files and
+ * folders, but I've condensed all the code in this file for the examples.
+ */
+
+// Default database table name.
+define('CE_VIEWED_DB_TABLE_NAME', 'ce_viewed_node');
+// Default time format.
+define('CE_VIEWED_TIME_FORMAT', 'd-m-y h:i:sa');
+
+/**
+ * Implements hook_schema().
+ */
+function code_examples_last_viewed_schema() {
+
+  $schema[CE_VIEWED_DB_TABLE_NAME] = array(
+    'description' => 'The base table for the Code Examples last viewed.',
+    'fields' => array(
+      'vwid' => array(
+        'description' => 'Primary key of the View ID. Auto incremental and Unique.',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'uid' => array(
+        'description' => 'User ID.',
+        'type' => 'int',
+        'not null' => TRUE,
+      ),
+      'nid' => array(
+        'description' => 'Node ID.',
+        'type' => 'int',
+        'not null' => TRUE,
+      ),
+      'last_viewed'   => array(
+        'description' => 'Timestamp of the last viewed time.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0
+      ),
+      'created'   => array(
+        'description' => 'Timestamp when the register was first created.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0
+      ),
+    ),
+    'primary key' => array('vwid'),
+  );
+
+  return $schema;
+}
+
+/**
+ * Create new record on Last Viewed table.
+ * @param integer $nid
+ *    The node ID.
+ * @return \DatabaseStatementInterface|int
+ *    Result of the insert query, vwid.
+ */
+function ce_last_viewed_create_view($nid) {
+  if (user_is_anonymous()) return FALSE;
+  global $user;
+  $vwid = db_insert(CE_VIEWED_DB_TABLE_NAME) // Table name no longer needs {}
+  ->fields(array(
+    'uid' => $user->uid,
+    'nid' => $nid,
+    'last_viewed' => REQUEST_TIME,
+    'created' => REQUEST_TIME,
+  ))
+    ->execute();
+  return $vwid;
+}
+
+/**
+ * Add record to Last Viewed table, create | edit.
+ * @param integer $nid
+ *    The node ID.
+ * @return \DatabaseStatementInterface|int
+ *    Result of the insert query, vwid.
+ */
+function ce_last_viewed_add_view($nid) {
+  if (user_is_anonymous()) return FALSE;
+  // If record exist, then update.
+  if ($vwid = ce_last_viewed_view_exist($nid)) {
+    return db_update(CE_VIEWED_DB_TABLE_NAME)
+      ->fields(array(
+        'last_viewed' => REQUEST_TIME,
+      ))
+      ->condition('vwid', $vwid, '=')
+      ->execute();
+  }
+  // If it doen't exist create a new record.
+  else {
+    return ce_last_viewed_create_view($nid);
+  }
+}
+
+/**
+ * Check if there is a register for the given NID.
+ * @param integer $nid
+ *    The node ID.
+ * @return mixed
+ *    The vwid of the existing record or NULL if not exist.
+ */
+function ce_last_viewed_view_exist($nid) {
+  if (user_is_anonymous()) return FALSE;
+  global $user;
+  // Get the vwid of the last_viewed if exist.
+  $sql = "SELECT vwid FROM {" . CE_VIEWED_DB_TABLE_NAME . "} WHERE uid = :uid and nid = :nid";
+  $vwid = db_query($sql, array(':uid' => $user->uid, ':nid' => $nid))->fetchField();
+  return $vwid;
+}
+
+/**
+ * Get timestamp of last view from view ID given.
+ * @param $vwid integer
+ *    The view id.
+ * @return mixed
+ *    The timestamp or an error handler.
+ */
+function ce_last_viewed_get_timestamp($vwid) {
+  $sql = "SELECT last_viewed FROM {" . CE_VIEWED_DB_TABLE_NAME . "} WHERE vwid = :vwid";
+  return db_query($sql, array(':vwid' => $vwid))->fetchField();
+}
+
+/**
+ * Query the custom table to get the timestamp.
+ * @param integer $nid
+ *    The node ID.
+ * @return bool
+ *    The timestamp for the given vwid or FALSE.
+ */
+function ce_last_viewed_get_view($nid) {
+  if ($vwid = ce_last_viewed_view_exist($nid)) {
+    return ce_last_viewed_get_timestamp($vwid);
+  }
+  return FALSE;
+}
+
+/**
+ * Remove all records for given Node ID.
+ * @param Integer $nid
+ *    The node ID.
+ * @return \DatabaseStatementInterface
+ *    The database result handler.
+ */
+function ce_last_viewed_remove_view($nid) {
+  return db_delete(CE_VIEWED_DB_TABLE_NAME)
+    ->condition('nid', $nid, '=')
+    ->execute();
+}
+
+/**
+ * This functionality must be done in a field, but for the examples I've used
+ * this hook.
+ * Implements hook_node_view().
+ */
+function code_examples_last_viewed_node_view($node, $view_mode, $langcode) {
+  // Only display field if there is a record.
+  if ($last_viewed = ce_last_viewed_get_view($node->nid)) {
+    // Add the last node viewed info to node object.
+    $node->content['last_viewed'] = array(
+      '#markup' => '<label>' . t('Last Viewed:') . ' </label><span>' .
+        date(CE_VIEWED_TIME_FORMAT, $last_viewed) . '</span>',
+      '#weight' => -5,
+      '#prefix' => '<div class="field ce-last-viewed">',
+      '#suffix' => '</div>',
+    );
+  }
+  // Log this new Last Viewed every time a user visit the Node View page of a node.
+  ce_last_viewed_add_view($node->nid);
+}

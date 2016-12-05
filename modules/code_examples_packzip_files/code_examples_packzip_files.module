@@ -1,0 +1,331 @@
+<?php
+
+/**
+ * @file
+ *
+ * .module file for Packzip_files module.
+ *
+ * Usually the functions in this file should go in different includes files and
+ * folders, but I've condensed all the code in this file for the examples.
+ */
+
+
+/**
+ * Implements hook_menu().
+ */
+function code_examples_packzip_files_menu() {
+
+  $items = array();
+
+  $items['site-content'] = array(
+    'title' => 'Site Content',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('ce_site_content_form'),
+    'access arguments' => array('access content'),
+    'type' => MENU_NORMAL_ITEM,
+    'menu_name' => 'main-menu',
+    'weight' => 1,  );
+
+  $items['site-content/select'] = array(
+    'title' => 'Selected Content With Files',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('ce_selected_content_form'),
+    'access arguments' => array('access content'),
+    'type' => MENU_NORMAL_ITEM,
+    'menu_name' => 'main-menu',
+    'weight' => 2,  );
+
+  $items['site-content/download/%'] = array(
+    'title' => 'Download Files',
+    'page callback' => 'ce_selected_content_download',
+    'page arguments' => array(2),
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+/**
+ * All content table with checkboxes Form.
+ */
+function ce_site_content_form($form, $form_state) {
+
+  // Get all website content.
+  $content = _get_site_content();
+
+  // Generate table content.
+  $table_rows = array();
+  foreach ($content as $nid => $node) {
+    $table_rows[] = array(
+      $node->title,
+      $node->type,
+      date("F j, Y, g:i a", $node->created),
+      '<input type="checkbox" id="select-' . $node->nid . '" name="select-' . $node->nid . '" value="' . $node->nid . '"/>',
+    );
+  }
+  $table_headers = array(
+    t('Content Title'),
+    t('Content Type'),
+    t('Created Date'),
+    t('Select'),
+  );
+
+  $table = theme('table', array('header' => $table_headers, 'rows' => $table_rows, 'attributes' => array('class' => array('site-content'))));
+
+  $form['content_table'] = array(
+    '#type' => 'item',
+    '#markup' => $table,
+  );
+
+  $form['options'] = array(
+    '#type' => 'container',
+  );
+
+  $form['options']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Select'),
+  );
+  return $form;
+}
+
+/**
+ * Validate function for ce_site_content_form()
+ */
+function ce_site_content_form_validate($form, $form_state) {
+// Empty Validate function.
+}
+
+/**
+ * Submit handler for ce_site_content_form()
+ */
+function ce_site_content_form_submit($form, &$form_state) {
+  $node_selected = array();
+  foreach ($form_state['input'] as $field => $value) {
+    $split = explode('-', $field);
+    if (isset($split['0']) && $split['0'] == 'select') {
+      $node_selected[] = $value;
+    }
+  }
+  $_SESSION['ids'] = implode(' ', $node_selected);
+
+  $form_state['redirect'] = 'site-content/select';
+}
+
+/**
+ * Entity Field Query to return all published content in the site.
+ * @return array|bool
+ *  Associative array of node Ids and Node Objects.
+ */
+function _get_site_content() {
+  // Query to get all published content on the Drupal site.
+  $query = new EntityFieldQuery();
+  $query->entityCondition('entity_type', 'node')
+    ->propertyCondition('status', NODE_PUBLISHED)
+    ->addMetaData('account', user_load(1));
+  $result = $query->execute();
+
+  if (isset($result['node'])) {
+
+    $return = array();
+    foreach ($result['node'] as $nid => $options) {
+      $return[$nid] = node_load($nid);
+    }
+    return $return;
+  }
+  return FALSE;
+}
+
+/**
+ * Entity Field Query to return all Selected content.
+ *
+ * @param array $arguments
+ *  Array of node ids to load.
+ * @return array|bool
+ *  Associative array of node Ids and Node Objects.
+ */
+function _get_selected_content($arguments) {
+  $return = FALSE;
+  foreach ($arguments as $key => $nid) {
+    $node = node_load($nid);
+    if (ce_node_get_files($node)) $return[$nid] = $node;
+  }
+  return $return;
+}
+
+/**
+ * Selected content table with checkboxes Form.
+ */
+function ce_selected_content_form($form, $form_state) {
+  // get arguments from previous form.
+  $arguments = explode(' ', $_SESSION['ids']);
+
+  // Load the selected nodes. (Only if they have active files.)
+  $content = _get_selected_content($arguments);
+
+  // Generate Table content
+  $table_rows = array();
+  foreach ($content as $nid => $node) {
+    $table_rows[] = array(
+      $node->title,
+      $node->type,
+      date("F j, Y, g:i a", $node->created),
+      '<input type="checkbox" id="select-' . $node->nid . '" name="select-' . $node->nid . '" value="' . $node->nid . '"/>',
+    );
+    $selected[] = $nid;
+  }
+  $table_headers = array(
+    t('Content Title'),
+    t('Content Type'),
+    t('Created Date'),
+    t('Select'),
+  );
+
+  $table = theme('table', array('header' => $table_headers, 'rows' => $table_rows, 'attributes' => array('class' => array('selected-content'))));
+
+  $form['intro'] = array(
+    '#type' => 'item',
+    '#markup' => t('Please note all content in this table has associated files. <br />
+        I have removed any content with no file entities.'),
+  );
+
+  $form['content_table'] = array(
+    '#type' => 'item',
+    '#markup' => $table,
+  );
+
+  $form['ids'] = array(
+    '#type' => 'hidden',
+    '#value' => implode(' ', $selected),
+  );
+
+  $form['options'] = array(
+    '#type' => 'container',
+  );
+
+  $form['options']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Download'),
+  );
+
+  return $form;
+}
+
+/**
+ * Validate function for ce_selected_content_form()
+ */
+function ce_selected_content_form_validate($form, $form_state) {
+// Empty Validate function.
+}
+
+/**
+ * Submit handler for ce_selected_content_form()
+ */
+function ce_selected_content_form_submit($form, &$form_state) {
+  $node_selected = array();
+  foreach ($form_state['input'] as $field => $value) {
+    $split = explode('-', $field);
+    if (isset($split['0']) && $split['0'] == 'select') {
+      $node_selected[] = $value;
+    }
+  }
+  $form_state['redirect'] = 'site-content/download/' . implode('+', $node_selected);
+}
+
+/**
+ * Page interface to download the packed files.
+ */
+function ce_selected_content_download($node_ids) {
+  $node_ids = explode('+', $node_ids);
+
+  $node_ids = array_values(array_unique($node_ids));
+
+  // Set packed file name.
+  $filename = 'download-' . REQUEST_TIME;
+
+  // Get the array of Nodes and Files within those nodes.
+  $compress = array();
+  foreach ($node_ids as $key => $nid) {
+    $node = node_load($nid);
+    $files = ce_node_get_files($node);
+    $compress[$node->title] = $files;
+  }
+
+  // Generate the packed file and get URL.
+  $packed_uri = ce_pack_files($compress, $filename);
+
+  if ($packed_uri) {
+    // Force download file.
+    header('Content-Type: application/zip');
+    header('Content-disposition: attachment; filename=' . $filename . '.zip');
+    header('Content-Length: ' . filesize($packed_uri));
+    readfile($packed_uri);
+  }
+
+  return 'There was an error retrieving the Download Files for this system, please try again later.';
+}
+
+/**
+ * Given a node retrieves an array of the file uris
+ * @param Object $node
+ *  Node Object.
+ * @return array|bool
+ *  Array of file URIs or FALSE
+ */
+function ce_node_get_files($node) {
+  if (is_numeric($node)) $node = node_load($node);
+
+  // File field types.
+  $file_field_types = array('field_item_file', 'field_item_image');
+  // Load node in entity metadate wrapper.
+  $node_wrapper = entity_metadata_wrapper('node', $node);
+  // Check each field of the Entity
+  $file_fields = array();
+  foreach ($node_wrapper->getPropertyInfo() as $fieldname => $field) {
+    if (isset($field['type']) && in_array($field['type'], $file_field_types)) {
+      $file_fields[] = $fieldname;
+    }
+  }
+  // Iterate the file fields in the entity.
+  $return = FALSE;
+  foreach ($file_fields as $key => $fieldname) {
+    $field_value = $node_wrapper->$fieldname->value();
+    // Return only valid URIs
+    if ($field_value) $return[] = drupal_realpath($field_value['uri']);
+  }
+  return $return;
+}
+
+/**
+ * Zip function using ZipArchive PHP Class.
+ * @param array $compress
+ *  Array of Node titles with the file URIs to compress.
+ * @param String $filename
+ *  The name of the zip file.
+ * @param int $fileOptions
+ *  Option for ZipArchive::open
+ * @return string
+ *  The full path for the new created or updated zip file.
+ */
+function ce_pack_files($compress, $filename, $file_options = ZipArchive::CREATE|ZipArchive::OVERWRITE) {
+
+  // Save the zip files in public filesystem.
+  $public_path = drupal_realpath('public://packed-zips');
+  file_prepare_directory($public_path, FILE_CREATE_DIRECTORY);
+
+  $zipname = $public_path . '/' . $filename . '.zip';
+
+  $zip = new ZipArchive;
+  $zip->open($zipname, $file_options);
+  foreach ($compress as $local_path => $files) {
+    foreach ($files as $file) {
+      if (file_exists($file)) {
+        $temp = explode('/', $file);
+        $zip->addFile($file, $local_path . '/' . end($temp));
+      }
+    }
+  }
+  $zip->close();
+
+  return $zipname;
+}

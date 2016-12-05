@@ -1,0 +1,5 @@
+name = Code Examples - Last Viewed
+description = Log when a Node was last viewed by the author.
+package = Custom
+core = 7.x
+

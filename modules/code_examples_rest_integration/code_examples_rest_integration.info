@@ -1,0 +1,4 @@
+name = Code Examples - REST API integration
+description = REST API example integration of an agenda.
+package = Custom
+core = 7.x

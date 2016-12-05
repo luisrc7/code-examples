@@ -1,0 +1,122 @@
+<?php
+
+/**
+ * @file
+ *
+ * Install file.
+ */
+
+/**
+ * Implements hook_install().
+ */
+function code_examples_migration_install() {
+  node_types_rebuild();
+  $types = node_type_get_types();
+  node_add_body_field($types['biography']);
+  add_custom_fields();
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function code_examples_migration_uninstall() {
+  $ourtype = 'biography';
+  $sql = 'SELECT nid FROM {node} n WHERE n.type = :type';
+  $result = db_query($sql, array(':type' => $ourtype));
+  $nodeids = array();
+  foreach ($result as $row) {
+    $nodeids[] = $row->nid;
+  }
+  node_delete_multiple($nodeids);
+  delete_custom_fields();
+  node_type_delete($ourtype);
+  field_purge_batch(500);
+}
+
+/**
+ * This function will delete the fields created for this module.
+ */
+function delete_custom_fields() {
+  foreach (array_keys(_ce_migration_installed_fields()) as $field) {
+    field_delete_field($field);
+  }
+  $instances = field_info_instances('node', 'biography');
+  foreach ($instances as $instance_name => $fieldinstance) {
+    field_delete_instance($fieldinstance);
+  }
+}
+
+/**
+ * This helper function returns all the created fields for this module.
+ * @return array
+ */
+function _ce_migration_installed_fields() {
+  $t = get_t();
+  return array(
+    'field_biography_article' => array(
+      'field_name' => 'field_biography_article',
+      'label' => $t('Referenced Article'),
+      'type' => 'entityreference'
+    ),
+  );
+}
+
+/**
+ * This helper function returns the field instances created in this module.
+ * @return array
+ */
+function _ce_migration_installed_instances() {
+  $t = get_t();
+  return array(
+    'field_biography_article' => array(
+      'field_name' => 'field_biography_article',
+      'type' => 'entityreference',
+      'label' => $t('Referenced Article'),
+      'widget' => array(
+        'type' => 'entityreference_autocomplete'
+      ),
+      'settings' => array(
+        'target_type' => 'node',
+        'handler' => 'base',
+        'handler_settings' => array(
+          'target_bundles' => array(
+            'article',
+          ),
+        ),
+      ),
+      'display' => array(
+        'default' => array(
+          'label' => 'hidden',
+          'type' => 'entityreference_label',
+          'settings' => array(
+            'link' => TRUE,
+          ),
+        ),
+      )
+    ),
+  );
+}
+
+/**
+ * This function creates the fields and instances declared in this module.
+ */
+function add_custom_fields() {
+  foreach (_ce_migration_installed_fields() as $field) {
+    field_create_field($field);
+  }
+  foreach (_ce_migration_installed_instances() as $fieldinstance) {
+    $fieldinstance['entity_type'] = 'node';
+    $fieldinstance['bundle'] = 'biography';
+    print_r($fieldinstance);
+    field_create_instance($fieldinstance);
+  }
+}
+
+
+/**
+ * Custom function to deregister migrations
+ */
+function code_examples_migration_disable() {
+  Migration::deregisterMigration('MigrateArticle');
+  Migration::deregisterMigration('MigrateBio');
+}
